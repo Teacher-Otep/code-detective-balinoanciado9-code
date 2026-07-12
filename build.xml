@@ -1,73 +1,198 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<!-- You may freely edit this file. See commented blocks below for -->
-<!-- some examples of how to customize the build. -->
-<!-- (If you delete it and reopen the project it will be recreated.) -->
-<!-- By default, only the Clean and Build commands use this build script. -->
-<!-- Commands such as Run, Debug, and Test only use this build script if -->
-<!-- the Compile on Save feature is turned off for the project. -->
-<!-- You can turn off the Compile on Save (or Deploy on Save) setting -->
-<!-- in the project's Project Properties dialog box.-->
-<project name="NaiveCoffeeShop" default="default" basedir=".">
-    <description>Builds, tests, and runs the project NaiveCoffeeShop.</description>
-    <import file="nbproject/build-impl.xml"/>
-    <!--
+        import java.util.ArrayList;
+import java.util.List;
+import java.util.Scanner;
 
-    There exist several targets which are by default empty and which can be 
-    used for execution of your tasks. These targets are usually executed 
-    before and after some main targets. They are: 
+// =========================================================================
+// SECTION 1: THE DATA MODULE (Manages product profiles)
+// =========================================================================
+class MenuItem {
+    private int id;
+    private String name;
+    private double price;
 
-      -pre-init:                 called before initialization of project properties
-      -post-init:                called after initialization of project properties
-      -pre-compile:              called before javac compilation
-      -post-compile:             called after javac compilation
-      -pre-compile-single:       called before javac compilation of single file
-      -post-compile-single:      called after javac compilation of single file
-      -pre-compile-test:         called before javac compilation of JUnit tests
-      -post-compile-test:        called after javac compilation of JUnit tests
-      -pre-compile-test-single:  called before javac compilation of single JUnit test
-      -post-compile-test-single: called after javac compilation of single JUunit test
-      -pre-jar:                  called before JAR building
-      -post-jar:                 called after JAR building
-      -post-clean:               called after cleaning build products
+    public MenuItem(int id, String name, double price) {
+        this.id = id;
+        this.name = name;
+        this.price = price;
+    }
 
-    (Targets beginning with '-' are not intended to be called on their own.)
+    public int getId() { return id; }
+    public String getName() { return name; }
+    public double getPrice() { return price; }
+}
 
-    Example of inserting an obfuscator after compilation could look like this:
+// =========================================================================
+// SECTION 2: THE CART & MATH MODULE (Manages items and calculations)
+// =========================================================================
+class OrderCart {
+    public static class CartEntry {
+        private MenuItem item;
+        private int quantity;
 
-        <target name="-post-compile">
-            <obfuscate>
-                <fileset dir="${build.classes.dir}"/>
-            </obfuscate>
-        </target>
+        public CartEntry(MenuItem item, int quantity) {
+            this.item = item;
+            this.quantity = quantity;
+        }
 
-    For list of available properties check the imported 
-    nbproject/build-impl.xml file. 
+        public MenuItem getItem() { return item; }
+        public int getQuantity() { return quantity; }
+        public void setQuantity(int quantity) { this.quantity = quantity; }
+        public double getTotalPrice() { return item.getPrice() * quantity; }
+    }
 
+    private List<CartEntry> entries = new ArrayList<>();
 
-    Another way to customize the build is by overriding existing main targets.
-    The targets of interest are: 
+    public void addItem(MenuItem item, int quantity) {
+        for (CartEntry entry : entries) {
+            if (entry.getItem().getId() == item.getId()) {
+                entry.setQuantity(entry.getQuantity() + quantity);
+                return;
+            }
+        }
+        entries.add(new CartEntry(item, quantity));
+    }
 
-      -init-macrodef-javac:     defines macro for javac compilation
-      -init-macrodef-junit:     defines macro for junit execution
-      -init-macrodef-debug:     defines macro for class debugging
-      -init-macrodef-java:      defines macro for class execution
-      -do-jar:                  JAR building
-      run:                      execution of project 
-      -javadoc-build:           Javadoc generation
-      test-report:              JUnit report generation
+    public List<CartEntry> getEntries() { return entries; }
+    public boolean isEmpty() { return entries.isEmpty(); }
 
-    An example of overriding the target for project execution could look like this:
+    public double getGrandTotal() {
+        double total = 0.0;
+        for (CartEntry entry : entries) {
+            total += entry.getTotalPrice();
+        }
+        return total;
+    }
+}
 
-        <target name="run" depends="NaiveCoffeeShop-impl.jar">
-            <exec dir="bin" executable="launcher.exe">
-                <arg file="${dist.jar}"/>
-            </exec>
-        </target>
+// =========================================================================
+// SECTION 3: THE MAIN INTERFACE CONTROLLER (Manages menus and actions)
+// =========================================================================
+public class CoffeeShopApp {
+    private List<MenuItem> menu = new ArrayList<>();
+    private OrderCart activeCart = new OrderCart();
+    private Scanner scanner = new Scanner(System.in);
 
-    Notice that the overridden target depends on the jar target and not only on 
-    the compile target as the regular run target does. Again, for a list of available 
-    properties which you can use, check the target you are overriding in the
-    nbproject/build-impl.xml file. 
+    public CoffeeShopApp() {
+        menu.add(new MenuItem(1, "Espresso", 90.00));
+        menu.add(new MenuItem(2, "Americano", 100.00));
+        menu.add(new MenuItem(3, "Café Latte", 120.00));
+        menu.add(new MenuItem(4, "Cappuccino", 125.00));
+        menu.add(new MenuItem(5, "Mocha Latte", 135.00));
+    }
 
-    -->
-</project>
+    public void displayMenu() {
+        System.out.println("\n=========================================");
+        System.out.println("            DIGITAL MENU                 ");
+        System.out.println("=========================================");
+        for (MenuItem item : menu) {
+            System.out.printf("[%d] %-18s - ₱%.2f\n", item.getId(), item.getName(), item.getPrice());
+        }
+        System.out.println("-----------------------------------------");
+        System.out.println("[9] Proceed to Checkout");
+        System.out.println("[0] Cancel & Exit");
+    }
+
+    public void startService() {
+        while (true) {
+            displayMenu();
+            System.out.print("\nSelect an option or item ID: ");
+            int choice = readIntInput();
+
+            if (choice == 0) {
+                System.out.println("Order cancelled. Goodbye!");
+                break;
+            } else if (choice == 9) {
+                if (activeCart.isEmpty()) {
+                    System.out.println("Your cart is empty! Add items before checking out.");
+                } else {
+                    checkoutWorkflow();
+                    break;
+                }
+            } else {
+                MenuItem selectedItem = findItem(choice);
+                if (selectedItem == null) {
+                    System.out.println("Invalid Option! Please try again.");
+                    continue;
+                }
+                System.out.print("Enter quantity for " + selectedItem.getName() + ": ");
+                int quantity = readIntInput();
+                if (quantity <= 0) {
+                    System.out.println("Quantity must be greater than 0.");
+                    continue;
+                }
+                activeCart.addItem(selectedItem, quantity);
+                System.out.printf("Added %dx %s to your cart.\n", quantity, selectedItem.getName());
+            }
+        }
+    }
+
+    private MenuItem findItem(int id) {
+        for (MenuItem item : menu) {
+            if (item.getId() == id) return item;
+        }
+        return null;
+    }
+
+    private void checkoutWorkflow() {
+        double totalToPay = activeCart.getGrandTotal();
+        System.out.println("\n=========================================");
+        System.out.println("             BILL DETAILS                ");
+        System.out.println("=========================================");
+        System.out.printf("GRAND TOTAL DUE:               ₱%.2f\n", totalToPay);
+        System.out.println("=========================================");
+
+        double cashReceived = 0.0;
+        while (true) {
+            System.out.print("Enter Cash Tendered Amount: ₱");
+            if (scanner.hasNextDouble()) {
+                cashReceived = scanner.nextDouble();
+                if (cashReceived >= totalToPay) {
+                    break;
+                } else {
+                    System.out.printf("Inadequate Cash! You still owe ₱%.2f more.\n", (totalToPay - cashReceived));
+                }
+            } else {
+                System.out.println("Invalid cash entry. Please enter a proper amount.");
+                scanner.next();
+            }
+        }
+        printFinalReceipt(cashReceived);
+    }
+
+    private void printFinalReceipt(double cash) {
+        System.out.println("\n=========================================");
+        System.out.println("             OFFICIAL RECEIPT            ");
+        System.out.println("=========================================");
+        System.out.printf("%-18s %-6s %-10s\n", "Item", "Qty", "Total");
+        System.out.println("-----------------------------------------");
+
+        for (OrderCart.CartEntry entry : activeCart.getEntries()) {
+            System.out.printf("%-18s x%-5d ₱%.2f\n", 
+                entry.getItem().getName(), entry.getQuantity(), entry.getTotalPrice());
+        }
+
+        System.out.println("-----------------------------------------");
+        System.out.printf("GRAND TOTAL:                    ₱%.2f\n", activeCart.getGrandTotal());
+        System.out.println("-----------------------------------------");
+        System.out.printf("Cash Tendered:                  ₱%.2f\n", cash);
+        System.out.printf("Change Tendered:                ₱%.2f\n", (cash - activeCart.getGrandTotal()));
+        System.out.println("=========================================");
+        System.out.println("       Thank you for your order!         ");
+        System.out.println("=========================================");
+    }
+
+    private int readIntInput() {
+        while (!scanner.hasNextInt()) {
+            System.out.println("Invalid input numeric type expected. Try again.");
+            scanner.next();
+        }
+        return scanner.nextInt();
+    }
+
+    public static class Main {
+        public static void main(String[] args) {
+            CoffeeShopApp shop = new CoffeeShopApp();
+            shop.startService();
+        }
+    }
+}
